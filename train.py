@@ -47,12 +47,13 @@ def train():
     num_timesteps = 256
     keep_prob = .5
     num_n_units = [100, 100]
+    limit_train = None
 
 
 
     # Gather the training pieces from the specified directories
     training_pieces = {}
-    limit_train = 2
+
     for f in range(len(Midi_Directories)):
         Training_Midi_Folder = Music_Directory + Midi_Directories[f]
 
