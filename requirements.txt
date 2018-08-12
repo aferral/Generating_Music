@@ -1,0 +1,5 @@
+tensorflow-gpu
+numpy
+matplotlib
+git+git://github.com/louisabraham/python3-midi@master
+

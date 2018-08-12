@@ -9,12 +9,15 @@ import signal
 #batch_len = 16*8 # length of each sequence
 division_len = 16 # interval between possible start locations
 
-def loadPieces(dirpath, max_time_steps):
+def loadPieces(dirpath, max_time_steps,max_elements=None):
     pieces = {}
 
     for fname in os.listdir(dirpath):
         if fname[-4:] not in ('.mid','.MID'):
             continue
+
+        if max_elements and len(pieces) > max_elements:
+            break
 
         name = fname[:-4]
 
