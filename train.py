@@ -28,11 +28,11 @@ def get_feed_dict(time_tensors,note_tensors,batch_input,timewise_state_val,notew
 # parameters
 def train():
     Working_Directory = os.getcwd()
-    Music_Directory = "../proyecto-beatles/midis_por_instrumento/"
+    Music_Directory = "Midi_Files/Piano_Midi/"#"../proyecto-beatles/midis_por_instrumento/"
     print(Working_Directory)
-    Midi_Directories = ["Reed_Voice"]
+    Midi_Directories = ["mozart"]# ["Reed_Voice"]
     max_time_steps = 256  # only files atleast this many 16th note steps are saved
-    num_validation_pieces = 1
+    num_validation_pieces = 2
     practice_batch_size = 15
     practice_num_timesteps = 128
     num_t_units=[200, 200]
@@ -42,7 +42,7 @@ def train():
     loss_hist = []
     loss_valid_hist = []
     restore_model_name = None #'Long_Train'
-    save_model_name = 'Long_Train_256'
+    save_model_name = 'mozard_Long_Train_256'
     batch_size = 5
     num_timesteps = 256
     keep_prob = .5
