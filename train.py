@@ -18,12 +18,22 @@ from MyFunctions import Input_Kernel, LSTM_TimeWise_Training_Layer, LSTM_NoteWis
 # Note_State_Expand will be fed into the graph input, and Note_State_Batch will be used for the loss function.
 
 
-def get_feed_dict(time_tensors,note_tensors,batch_input,timewise_state_val,notewise_state_val,t,keep_prob):
-    feed_dict = {'node_state_batch:0': batch_input,
-                 time_tensors: timewise_state_val,
-                 note_tensors: notewise_state_val, "time_init:0": t,
+def get_feed_dict(batch_input,t,keep_prob):
+    feed_dict = {'node_state_batch:0': batch_input, "time_init:0": t,
                  "output_keep_prob:0": keep_prob}
     return feed_dict
+
+def get_feed_initil_state(batch_size,num_notes,num_timesteps,num_t_units,num_n_units):
+    t = {}
+    for i in range(len(num_t_units)):
+        t["timewise_h{0}:0".format(i)] = np.zeros((batch_size * num_notes, num_t_units[i]))
+        t["timewise_c{0}:0".format(i)] = np.zeros((batch_size * num_notes, num_t_units[i]))
+
+
+    for i in range(len(num_n_units)):
+        t["notewise_h{0}:0".format(i)] = np.zeros((batch_size * num_timesteps, num_n_units[i]))
+        t["notewise_c{0}:0".format(i)] = np.zeros((batch_size * num_timesteps, num_n_units[i]))
+    return t
 
 # parameters
 def train():
@@ -38,7 +48,8 @@ def train():
     num_t_units=[200, 200]
 
     start_time = time.time()
-    max_iteration = 7000 #50000
+    max_iteration = 2 #50000
+    iter_midi = 2
     loss_hist = []
     loss_valid_hist = []
     restore_model_name = None #'Long_Train'
@@ -47,7 +58,7 @@ def train():
     num_timesteps = 256
     keep_prob = .5
     num_n_units = [100, 100]
-    limit_train = None
+    limit_train = 2
 
 
 
@@ -116,6 +127,7 @@ def train():
     timewise_out, timewise_state_out = LSTM_TimeWise_Training_Layer(input_data=Note_State_Expand, state_init=timewise_state, output_keep_prob=output_keep_prob)
 
 
+
     print('Time-wise output shape = ', timewise_out.get_shape())
 
 
@@ -176,37 +188,6 @@ def train():
             print("Load the model from: {}".format(restore_model_name))
             saver.restore(sess, Load_Directory + '/{}'.format(restore_model_name))
 
-        # Initial States
-        timewise_state_val = []
-        for i in range(len(num_t_units)):
-            c_t = np.zeros((batch_size * num_notes, num_t_units[
-                i]))  # start every batch with zero state in LSTM time cells
-            h_t = np.zeros((batch_size * num_notes, num_t_units[i]))
-            timewise_state_val.append(LSTMStateTuple(h_t, c_t))
-
-        notewise_state_val = []
-        for i in range(len(num_n_units)):
-            c_n = np.zeros((batch_size * num_timesteps, num_n_units[
-                i]))  # start every batch with zero state in LSTM time cells
-            h_n = np.zeros((batch_size * num_timesteps, num_n_units[i]))
-            notewise_state_val.append(LSTMStateTuple(h_n, c_n))
-
-
-        # state,output tensors
-        note_tensors = []
-        time_tensors = []
-        for i in range(len(num_n_units)):
-            note_tensors.append(LSTMStateTuple('notewise_h{0}:0'.format(i),
-                                               'notewise_c{0}:0'.format(i)))
-
-        for i in range(len(num_t_units)):
-            time_tensors.append(LSTMStateTuple('timewise_h{0}:0'.format(i),
-                                               'timewise_c{0}:0'.format(i)))
-        note_tensors = tuple(note_tensors)
-        time_tensors = tuple(time_tensors)
-
-
-
 
         # Training Loop
         for iteration in range(max_iteration + 1):
@@ -221,11 +202,11 @@ def train():
                 batch_input_state = np.swapaxes(batch_input_state, axis1=1, axis2=2)
 
 
+            feed_dict = get_feed_dict(batch_input_state,0,keep_prob)
+            feed_initial_st = get_feed_initil_state(batch_size,num_notes,num_timesteps,num_t_units,num_n_units)
+            feed_dict = {**feed_dict, **feed_initial_st }
 
             # Run Session
-            feed_dict = get_feed_dict(time_tensors,note_tensors,batch_input_state,timewise_state_val,notewise_state_val,0,keep_prob)
-
-
             loss_run, log_likelihood_run, _, note_gen_out_run = sess.run(
                 [loss, log_likelihood, optimizer, note_gen_out],
                 feed_dict=feed_dict)
@@ -247,10 +228,12 @@ def train():
                 batch_input_state_valid = np.array(batch_input_state_valid)
                 batch_input_state_valid = np.swapaxes(batch_input_state_valid,
                                                       axis1=1, axis2=2)
-                feed_dict = {Note_State_Batch: batch_input_state_valid,
-                             timewise_state: timewise_state_val,
-                             notewise_state: notewise_state_val, time_init: 0,
-                             output_keep_prob: keep_prob}
+
+                feed_dict = get_feed_dict(batch_input_state_valid,0,keep_prob)
+                feed_initial_st = get_feed_initil_state(batch_size,num_notes,num_timesteps,num_t_units,num_n_units)
+                feed_dict = {**feed_dict, **feed_initial_st }
+
+
                 loss_valid, log_likelihood_valid = sess.run([loss, log_likelihood],
                                                             feed_dict=feed_dict)
 
@@ -264,7 +247,7 @@ def train():
                 loss_valid_hist.append(loss_valid)
 
             # Periodically generate Sample of music
-            if (iteration % 3000) == 0 and (iteration > 0):
+            if (iteration % iter_midi) == 0 and (iteration > 0):
                 generate_midi(sess, num_notes,num_t_units, num_n_units, "midi_iteracion{0}".format(iteration),timewise_state_out)
 
     end_time = time.time()
@@ -274,8 +257,10 @@ def train():
 
 
     # Plot the loss histories
-    plt.plot(loss_hist, label="Training Loss",style='*--')
-    plt.plot(loss_valid_hist, label="Validation Loss",style='*--')
+    os.makedirs(Output_Directory,exist_ok=True)
+    plt.switch_backend("agg")
+    plt.plot(loss_hist, label="Training Loss")
+    plt.plot(loss_valid_hist, label="Validation Loss")
     plt.legend()
     plt.savefig(os.path.join(Output_Directory,"train-val_loss.png"))
 
@@ -316,17 +301,7 @@ def generate_midi(sess,num_notes,num_t_units,num_n_units,out_name,timewise_state
     keep_prob = 1 # todo estaba en 0.5 ??
 
     # state,output tensors
-    note_tensors = []
-    time_tensors = []
-    for i in range(len(num_n_units)):
-        note_tensors.append(LSTMStateTuple('notewise_h{0}:0'.format(i),
-                                           'notewise_c{0}:0'.format(i)))
 
-    for i in range(len(num_t_units)):
-        time_tensors.append(LSTMStateTuple('timewise_h{0}:0'.format(i),
-                                           'timewise_c{0}:0'.format(i)))
-    note_tensors = tuple(note_tensors)
-    time_tensors = tuple(time_tensors)
 
     # start with initial Note_State_Batch with 't' dimension = 1 (can still a batch of samples run in parallel)
     notes_gen_initial = np.zeros((batch_gen_size, num_notes, 1, 2))
@@ -334,28 +309,35 @@ def generate_midi(sess,num_notes,num_t_units,num_n_units,out_name,timewise_state
     # Initial States
     notes_gen = notes_gen_initial
 
-    timewise_state_val = []
-    for i in range(len(num_t_units)):
-        c = np.zeros((batch_gen_size * num_notes, num_t_units[i]))  # start first time step with zero state in LSTM time cells
-        h = np.zeros((batch_gen_size * num_notes, num_t_units[i]))
-        timewise_state_val.append(LSTMStateTuple(h, c))
-
-    notewise_state_val = []
-    for i in range(len(num_n_units)):
-        c = np.zeros((batch_gen_size * 1, num_n_units[i]))  # start every batch with zero state in LSTM time cells
-        h = np.zeros((batch_gen_size * 1, num_n_units[i]))
-        notewise_state_val.append(LSTMStateTuple(h, c))
 
     notes_gen_arr = []
 
 
+    timewise_out_tensors = [('rnn/while/Exit_3:0','rnn/while/Exit_4:0'), ("rnn/while/Exit_5:0",'rnn/while/Exit_6:0')]
+
+
+
     for t in range(T_gen):
 
-        feed_dict = get_feed_dict(time_tensors, note_tensors, notes_gen,
-                                  timewise_state_val, notewise_state_val, t,
-                                  keep_prob)
+        feed_dict = get_feed_dict(notes_gen,t,keep_prob)
+        feed_initial_st = get_feed_initil_state(batch_gen_size,num_notes,1,num_t_units,num_n_units)
 
-        timewise_state_val, notes_gen = np.squeeze(sess.run([timewise_state_out, "note_gen_out:0"],feed_dict=feed_dict),axis=2)
+        # Si es inicial estado con zeros (por defecto) de lo contrario usar el timewise out de paso anterior
+        if initial:
+            initial = False
+        else:
+            lstm_tuple_list = timewise_state_val
+            for i in range(len(num_t_units)):
+                tuple_lstm = lstm_tuple_list[i]
+                feed_initial_st["timewise_h{0}:0".format(i)] = tuple_lstm[1]
+                feed_initial_st["timewise_c{0}:0".format(i)] = tuple_lstm[0]
+
+
+        feed_dict = {**feed_dict, **feed_initial_st }
+
+        timewise_state_val, notes_gen = np.squeeze(sess.run([timewise_out_tensors, "note_gen_out:0"],feed_dict=feed_dict),axis=2)
+
+
         notes_gen_arr.append(np.squeeze(notes_gen))
 
         if t % 50 == 0:
