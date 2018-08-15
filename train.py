@@ -40,7 +40,7 @@ def train():
     Working_Directory = os.getcwd()
     Music_Directory = "../proyecto-beatles/midis_por_instrumento/"
     print(Working_Directory)
-    Midi_Directories =  ["Guitar"]
+    Midi_Directories =  ["Reed_Voice"]
     max_time_steps = 256  # only files atleast this many 16th note steps are saved
     num_validation_pieces = 2
     practice_batch_size = 15
@@ -48,17 +48,17 @@ def train():
     num_t_units=[200, 200]
 
     start_time = time.time()
-    max_iteration = 2 #50000
-    iter_midi = 2
+    max_iteration = 15000 #50000
+    iter_midi = 3000
     loss_hist = []
     loss_valid_hist = []
     restore_model_name = None #'Long_Train'
-    save_model_name = 'beatlesGuitar_Long_Train_256'
+    save_model_name = 'beatles_reed_voice'
     batch_size = 5
     num_timesteps = 256
-    keep_prob = .5
-    num_n_units = [100, 100]
-    limit_train = 2
+    keep_prob = .3
+    num_n_units = [60, 60]
+    limit_train = None
 
 
 
@@ -248,7 +248,7 @@ def train():
 
             # Periodically generate Sample of music
             if (iteration % iter_midi) == 0 and (iteration > 0):
-                generate_midi(sess, num_notes,num_t_units, num_n_units, "midi_iteracion{0}".format(iteration),timewise_state_out)
+                generate_midi(sess, num_notes,num_t_units, num_n_units, "midi_iteracion{0}".format(iteration))
 
     end_time = time.time()
 
@@ -284,7 +284,7 @@ def load_and_generate_midi(model_checkpoint_folder):
 
         generate_midi(sess, num_notes, num_t_units, num_n_units, out_name)
 
-def generate_midi(sess,num_notes,num_t_units,num_n_units,out_name,timewise_state_out):
+def generate_midi(sess,num_notes,num_t_units,num_n_units,out_name):
     """
         Music Generation
         input = initial note vector
@@ -314,7 +314,7 @@ def generate_midi(sess,num_notes,num_t_units,num_n_units,out_name,timewise_state
 
 
     timewise_out_tensors = [('rnn/while/Exit_3:0','rnn/while/Exit_4:0'), ("rnn/while/Exit_5:0",'rnn/while/Exit_6:0')]
-
+    initial = True
 
 
     for t in range(T_gen):
