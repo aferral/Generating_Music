@@ -36,11 +36,17 @@ def get_feed_initil_state(batch_size,num_notes,num_timesteps,num_t_units,num_n_u
     return t
 
 # parameters
-def train():
+# seleccionar archivo yellow submarine
+# name save model
+# colocar Guitar , Bass , Reed_Voice , Organ , Percussion
+# midi/The_Beatles_-_Back_in_the_U.S.S.R.mid
+
+def train(music_folder,out_model_name,just_this_midi=None):
+
     Working_Directory = os.getcwd()
     Music_Directory = "../proyecto-beatles/midis_por_instrumento/"
     print(Working_Directory)
-    Midi_Directories =  ["Reed_Voice"]
+    Midi_Directories =  [music_folder]
     max_time_steps = 256  # only files atleast this many 16th note steps are saved
     num_validation_pieces = 2
     practice_batch_size = 15
@@ -53,7 +59,7 @@ def train():
     loss_hist = []
     loss_valid_hist = []
     restore_model_name = None #'Long_Train'
-    save_model_name = 'beatles_reed_voice'
+    save_model_name = out_model_name
     batch_size = 5
     num_timesteps = 256
     keep_prob = .3
@@ -62,19 +68,29 @@ def train():
 
 
 
+
+
     # Gather the training pieces from the specified directories
     training_pieces = {}
 
-    for f in range(len(Midi_Directories)):
-        Training_Midi_Folder = Music_Directory + Midi_Directories[f]
-
-        training_pieces = {**training_pieces,**multi_training.loadPieces(Training_Midi_Folder,max_time_steps,max_elements=limit_train)}
+    if just_this_midi:
+        training_pieces = {just_this_midi :  midi_musical_matrix.midiToNoteStateMatrix(just_this_midi)}
+    else:
+        for f in range(len(Midi_Directories)):
+            Training_Midi_Folder = Music_Directory + Midi_Directories[f]
+            training_pieces = {**training_pieces,**multi_training.loadPieces(Training_Midi_Folder,max_time_steps,max_elements=limit_train)}
 
     # Set aside a random set of pieces for validation purposes
     validation_pieces = {}
-    for v in range(num_validation_pieces):
-        index = random.choice(list(training_pieces.keys()))
-        validation_pieces[index] = training_pieces.pop(index)
+
+    if just_this_midi:
+        for f in range(1):
+            Training_Midi_Folder = Music_Directory + Midi_Directories[f]
+            validation_pieces = {**validation_pieces,**multi_training.loadPieces(Training_Midi_Folder,max_time_steps,max_elements=1)}
+    else:
+        for v in range(num_validation_pieces):
+            index = random.choice(list(training_pieces.keys()))
+            validation_pieces[index] = training_pieces.pop(index)
 
     print('')
     print('Number of training pieces = ', len(training_pieces))
@@ -262,7 +278,7 @@ def train():
     plt.plot(loss_hist, label="Training Loss")
     plt.plot(loss_valid_hist, label="Validation Loss")
     plt.legend()
-    plt.savefig(os.path.join(Output_Directory,"train-val_loss.png"))
+    plt.savefig(os.path.join(Output_Directory,"train-val_loss_{0}.png".format(out_model_name)))
 
 
 
@@ -358,4 +374,17 @@ def generate_midi(sess,num_notes,num_t_units,num_n_units,out_name):
     pass
 
 if __name__ == "__main__":
-    train()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('music_f',help='Carpeta de instrumento')
+    parser.add_argument('model_name', help='Nombre modelo')
+    parser.add_argument('--solo',nargs=1, help='Usar solo este midi')
+
+    args = parser.parse_args()
+    if args.solo is not None:
+        solo_este = args.solo[0]
+    else:
+        solo_este = None
+
+    train(args.music_f, args.model_name, just_this_midi=solo_este)
