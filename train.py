@@ -264,7 +264,7 @@ def train(music_folder,out_model_name,just_this_midi=None):
 
             # Periodically generate Sample of music
             if (iteration % iter_midi) == 0 and (iteration > 0):
-                generate_midi(sess, num_notes,num_t_units, num_n_units, "midi_iteracion{0}".format(iteration))
+                generate_midi(sess, num_notes,num_t_units, num_n_units, "midi_{1}_iteracion{0}".format(iteration,out_model_name))
 
     end_time = time.time()
 
